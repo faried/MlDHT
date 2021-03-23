@@ -2,38 +2,42 @@ defmodule MlDHT.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :mldht,
-     version: "0.0.3",
-     elixir: "~> 1.2",
-     build_embedded:  Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     description: description(),
-     package: package(),
-     deps: deps()]
+    [
+      app: :mldht,
+      version: "0.0.3",
+      elixir: "~> 1.2",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
+      deps: deps()
+    ]
   end
 
   def application do
-    [mod: {MlDHT, []},
-     env: [
-       port: 6881,
-       ipv4: true,
-       ipv6: true,
-       bootstrap_nodes: [
-         {"32F54E697351FF4AEC29CDBAABF2FBE3467CC267", "router.bittorrent.com",  6881},
-         {"EBFF36697351FF4AEC29CDBAABF2FBE3467CC267", "router.utorrent.com",    6881},
-         {"9F08E1074F1679137561BAFE2CF62A73A8AFADC7", "dht.transmissionbt.com", 6881},
-       ],
-       k_bucket_size: 8,
-     ],
-     applications: [:logger]]
+    [
+      mod: {MlDHT, []},
+      env: [
+        port: 6881,
+        ipv4: true,
+        ipv6: true,
+        bootstrap_nodes: [
+          {"32F54E697351FF4AEC29CDBAABF2FBE3467CC267", "router.bittorrent.com", 6881},
+          {"EBFF36697351FF4AEC29CDBAABF2FBE3467CC267", "router.utorrent.com", 6881},
+          {"9F08E1074F1679137561BAFE2CF62A73A8AFADC7", "dht.transmissionbt.com", 6881}
+        ],
+        k_bucket_size: 8
+      ],
+      extra_applications: [:logger, :crypto, :krpc_protocol]
+    ]
   end
 
   defp deps do
-    [{:bencodex,      "~> 1.0.0"},
-     {:krpc_protocol, "~> 0.0.5"},
-     {:ex_doc,        "~> 0.19",  only: :dev},
-     {:pretty_hex,    "~> 0.0.1", only: :dev},
-     {:dialyxir,      "~> 0.5.1", only: [:dev, :test]}
+    [
+      {:krpc_protocol, path: "/home/fn/repos/krpc_protocol"},
+      {:ex_doc, "~> 0.19", only: :dev},
+      {:pretty_hex, "~> 0.0.1", only: :dev},
+      {:dialyxir, "~> 1.1.0", only: [:dev, :test]}
     ]
   end
 
@@ -44,10 +48,12 @@ defmodule MlDHT.Mixfile do
   end
 
   defp package do
-    [name:        :mldht,
-     files:       ["lib", "mix.exs", "README*", "LICENSE*"],
-     maintainers: ["Florian Adamsky"],
-     licenses:    ["MIT"],
-     links:       %{"GitHub" => "https://github.com/cit/MLDHT"}]
+    [
+      name: :mldht,
+      files: ["lib", "mix.exs", "README*", "LICENSE*"],
+      maintainers: ["Florian Adamsky"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/cit/MLDHT"}
+    ]
   end
 end
