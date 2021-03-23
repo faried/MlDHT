@@ -12,7 +12,8 @@ defmodule MlDHT.Server.Storage.Test do
     start_supervised!({
       DynamicSupervisor,
       name: Registry.via(node_id_enc, MlDHT.RoutingTable.NodeSupervisor, rt_name),
-      strategy: :one_for_one})
+      strategy: :one_for_one
+    })
 
     start_supervised!({Storage, name: Registry.via(node_id_enc, Storage)})
 
@@ -40,5 +41,4 @@ defmodule MlDHT.Server.Storage.Test do
 
     assert Storage.get_nodes(pid, "aaaa") == [{ip1, 6881}, {ip2, 6882}]
   end
-
 end

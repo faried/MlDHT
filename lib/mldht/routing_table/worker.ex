@@ -39,9 +39,9 @@ defmodule MlDHT.RoutingTable.Worker do
   ##############
 
   def start_link(opts) do
-    Logger.debug "Starting RoutingTable worker: #{inspect(opts)}"
+    Logger.debug("Starting RoutingTable worker: #{inspect(opts)}")
     init_args = [node_id: opts[:node_id], rt_name: opts[:rt_name]]
-    GenServer.start_link(__MODULE__,  init_args, opts)
+    GenServer.start_link(__MODULE__, init_args, opts)
   end
 
   def add(name, remote_node_id, address, socket) do
@@ -89,8 +89,7 @@ defmodule MlDHT.RoutingTable.Worker do
     Process.send_after(self(), :review, @review_time)
 
     ## Start timer for neighbourhood maintenance
-    Process.send_after(self(), :neighbourhood_maintenance,
-      @neighbourhood_maintenance_time)
+    Process.send_after(self(), :neighbourhood_maintenance, @neighbourhood_maintenance_time)
 
     ## Start timer for bucket maintenance
     Process.send_after(self(), :bucket_maintenance, @bucket_maintenance_time)
@@ -98,26 +97,26 @@ defmodule MlDHT.RoutingTable.Worker do
     ## Generate name of the ets cache table from the node_id as an atom
     ets_name = node_id |> Base.encode16() |> String.to_atom()
 
-    {:ok, %{
-        node_id:     node_id,
-        node_id_enc: Base.encode16(node_id),
-        rt_name:     rt_name,
-        buckets:     [Bucket.new(0)],
-        cache:       :ets.new(ets_name, [:set, :protected]),
+    {:ok,
+     %{
+       node_id: node_id,
+       node_id_enc: Base.encode16(node_id),
+       rt_name: rt_name,
+       buckets: [Bucket.new(0)],
+       cache: :ets.new(ets_name, [:set, :protected])
      }}
   end
 
-  @doc """
-  This function gets called by an external timer. This function checks when was
-  the last time a node has responded to our requests.
-  """
+  # This function gets called by an external timer. This function checks when was
+  # the last time a node has responded to our requests.
   def handle_info(:review, state) do
-    new_buckets = Enum.map(state.buckets, fn(bucket) ->
-      Bucket.filter(bucket, fn(pid) ->
-        Node.last_time_responded(pid)
-        |> evaluate_node(state.cache, pid)
+    new_buckets =
+      Enum.map(state.buckets, fn bucket ->
+        Bucket.filter(bucket, fn pid ->
+          Node.last_time_responded(pid)
+          |> evaluate_node(state.cache, pid)
+        end)
       end)
-    end)
 
     ## Restart the Timer
     Process.send_after(self(), :review, @review_time)
@@ -125,12 +124,10 @@ defmodule MlDHT.RoutingTable.Worker do
     {:noreply, %{state | :buckets => new_buckets}}
   end
 
-  @doc """
-  This functions gets called by an external timer. This function takes a random
-  node from a random bucket and runs a find_node query with our own node_id as a
-  target. By that way, we try to find more and more nodes that are in our
-  neighbourhood.
-  """
+  # This functions gets called by an external timer. This function takes a random
+  # node from a random bucket and runs a find_node query with our own node_id as a
+  # target. By that way, we try to find more and more nodes that are in our
+  # neighbourhood.
   def handle_info(:neighbourhood_maintenance, state) do
     Distance.gen_node_id(152, state.node_id)
     |> find_node_on_random_node(state)
@@ -141,22 +138,20 @@ defmodule MlDHT.RoutingTable.Worker do
     {:noreply, state}
   end
 
-  @doc """
-  This function gets called by an external timer. It iterates through all
-  buckets and checks if a bucket has less than 6 nodes and was not updated
-  during the last 15 minutes. If this is the case, then we will pick a random
-  node and start a find_node query with a random_node from that bucket.
+  # This function gets called by an external timer. It iterates through all
+  # buckets and checks if a bucket has less than 6 nodes and was not updated
+  # during the last 15 minutes. If this is the case, then we will pick a random
+  # node and start a find_node query with a random_node from that bucket.
 
-  Excerpt from BEP 0005: "Buckets that have not been changed in 15 minutes
-  should be "refreshed." This is done by picking a random ID in the range of the
-  bucket and performing a find_nodes search on it."
-  """
+  # Excerpt from BEP 0005: "Buckets that have not been changed in 15 minutes
+  # should be "refreshed." This is done by picking a random ID in the range of the
+  # bucket and performing a find_nodes search on it."
   def handle_info(:bucket_maintenance, state) do
     state.buckets
-    |> Stream.with_index
-    |> Enum.each(fn({bucket, index}) ->
+    |> Stream.with_index()
+    |> Enum.each(fn {bucket, index} ->
       if Bucket.age(bucket) >= @bucket_max_idle_time or Bucket.size(bucket) < 6 do
-        Logger.info "Staring find_node search on bucket #{index}"
+        Logger.info("Staring find_node search on bucket #{index}")
 
         Distance.gen_node_id(index, state.node_id)
         |> find_node_on_random_node(state)
@@ -168,116 +163,104 @@ defmodule MlDHT.RoutingTable.Worker do
     {:noreply, state}
   end
 
-  @doc """
-  This function returns the 8 closest nodes in our routing table to a specific
-  target.
-  """
-  def handle_call({:closest_nodes, target, remote_node_id}, _from, state ) do
-    list = state.cache
-    |> :ets.tab2list()
-    |> Enum.filter(&(elem(&1, 0) != remote_node_id))
-    |> Enum.sort(fn(x, y) ->
-      Distance.xor_cmp(elem(x, 0), elem(y, 0), target, &(&1 < &2))
-    end)
-    |> Enum.map(fn(x) -> elem(x, 1) end)
-    |> Enum.slice(0..7)
+  # This function returns the 8 closest nodes in our routing table to a specific
+  # target.
+  def handle_call({:closest_nodes, target, remote_node_id}, _from, state) do
+    list =
+      state.cache
+      |> :ets.tab2list()
+      |> Enum.filter(&(elem(&1, 0) != remote_node_id))
+      |> Enum.sort(fn x, y ->
+        Distance.xor_cmp(elem(x, 0), elem(y, 0), target, &(&1 < &2))
+      end)
+      |> Enum.map(fn x -> elem(x, 1) end)
+      |> Enum.slice(0..7)
 
     {:reply, list, state}
   end
 
-  @doc """
-  This functiowe will ren returns the pid for a specific node id. If the node
-  does not exists, it will try to add it to our routing table. Again, if this
-  was successful, this function returns the pid, otherwise nil.
-  """
+  # This functiowe will ren returns the pid for a specific node id. If the node
+  # does not exists, it will try to add it to our routing table. Again, if this
+  # was successful, this function returns the pid, otherwise nil.
   def handle_call({:get, node_id}, _from, state) do
     {:reply, get_node(state.cache, node_id), state}
   end
 
-  @doc """
-  This function returns the number of nodes in our routing table as an integer.
-  """
+  # This function returns the number of nodes in our routing table as an integer.
   def handle_call(:size, _from, state) do
-    size = state.buckets
-    |> Enum.map(fn(b) -> Bucket.size(b) end)
-    |> Enum.reduce(fn(x, acc) -> x + acc end)
+    size =
+      state.buckets
+      |> Enum.map(fn b -> Bucket.size(b) end)
+      |> Enum.reduce(fn x, acc -> x + acc end)
 
     {:reply, size, state}
   end
 
-  @doc """
-  This function returns the number of nodes from the cache as an integer.
-  """
+  # This function returns the number of nodes from the cache as an integer.
   def handle_call(:cache_size, _from, state) do
     {:reply, :ets.tab2list(state.cache) |> Enum.count(), state}
   end
 
-  @doc """
-  Without parameters this function returns our own node id. If this function
-  gets a string as a parameter, it will set this as our node id.
-  """
+  # Without parameters this function returns our own node id. If this function
+  # gets a string as a parameter, it will set this as our node id.
   def handle_call(:node_id, _from, state) do
     {:reply, state.node_id, state}
   end
 
   def handle_call({:node_id, node_id}, _from, state) do
     ## Generate new name of the ets cache table and rename it
-    ets_name  = node_id |> Base.encode16() |> String.to_atom()
+    ets_name = node_id |> Base.encode16() |> String.to_atom()
     new_cache = :ets.rename(state.cache, ets_name)
 
     {:reply, :ok, %{state | :node_id => node_id, :cache => new_cache}}
   end
 
-  @doc """
-  This function deletes a node according to its node id.
-  """
+  # This function deletes a node according to its node id.
   def handle_call({:del, node_id}, _from, state) do
     new_bucket = del_node(state.cache, state.buckets, node_id)
     {:reply, :ok, %{state | :buckets => new_bucket}}
   end
 
-  @doc """
-  This function update the last_update time value in the bucket.
-  """
+  # This function update the last_update time value in the bucket.
   def handle_cast({:update_bucket, bucket_index}, state) do
-    new_bucket = state.buckets
-    |> Enum.at(bucket_index)
-    |> Bucket.update()
+    new_bucket =
+      state.buckets
+      |> Enum.at(bucket_index)
+      |> Bucket.update()
 
-    new_buckets = state.buckets
-    |> List.replace_at(bucket_index, new_bucket)
+    new_buckets =
+      state.buckets
+      |> List.replace_at(bucket_index, new_bucket)
 
     {:noreply, %{state | :buckets => new_buckets}}
   end
 
-  @doc """
-  This function tries to add a new node to our routing table. It does not add
-  the node to the routing table if the node is already in the routing table or
-  if the node_id is equal to our own node_id. In this case the function will
-  return nil. Otherwise, we will add it to our routing table and return the node
-  pid.
-  """
+  # This function tries to add a new node to our routing table. It does not add
+  # the node to the routing table if the node is already in the routing table or
+  # if the node_id is equal to our own node_id. In this case the function will
+  # return nil. Otherwise, we will add it to our routing table and return the node
+  # pid.
   def handle_cast({:add, node_id, address, socket}, state) do
     cond do
       # This is our own node id
       node_id == state.node_id ->
         {:noreply, state}
+
       # We have this node already in our table
       node_exists?(state.cache, node_id) ->
         {:noreply, state}
+
       true ->
         {:noreply, add_node(state, {node_id, address, socket})}
     end
   end
 
-  @doc """
-  This function is for debugging purpose only. It prints out the complete
-  routing table.
-  """
+  # This function is for debugging purpose only. It prints out the complete
+  # routing table.
   def handle_cast(:print, state) do
     state.buckets
-    |> Enum.each(fn (bucket) ->
-      Logger.debug inspect(bucket)
+    |> Enum.each(fn bucket ->
+      Logger.debug(inspect(bucket))
     end)
 
     {:noreply, state}
@@ -300,7 +283,7 @@ defmodule MlDHT.RoutingTable.Worker do
         true
 
       time >= @response_time and Node.is_questionable?(pid) ->
-        Logger.debug "[#{Base.encode16 Node.id(pid)}] Deleted"
+        Logger.debug("[#{Base.encode16(Node.id(pid))}] Deleted")
         :ets.delete(cache, Node.id(pid))
         Node.stop(pid)
         false
@@ -310,7 +293,7 @@ defmodule MlDHT.RoutingTable.Worker do
   def find_node_on_random_node(target, state) do
     case random_node(state.cache) do
       node_pid when is_pid(node_pid) ->
-        node   = Node.to_tuple(node_pid)
+        node = Node.to_tuple(node_pid)
         socket = Node.socket(node_pid)
 
         ## Start find_node search
@@ -320,10 +303,9 @@ defmodule MlDHT.RoutingTable.Worker do
         |> Search.find_node(target: target, start_nodes: [node])
 
       nil ->
-        Logger.warn "No nodes in our routing table."
+        Logger.warn("No nodes in our routing table.")
     end
   end
-
 
   @doc """
   This function adds a new node to our routing table.
@@ -332,38 +314,38 @@ defmodule MlDHT.RoutingTable.Worker do
     {node_id, _ip_port, _socket} = node_tuple
 
     my_node_id = state.node_id
-    buckets    = state.buckets
-    index      = find_bucket_index(buckets, my_node_id, node_id)
-    bucket     = Enum.at(buckets, index)
+    buckets = state.buckets
+    index = find_bucket_index(buckets, my_node_id, node_id)
+    bucket = Enum.at(buckets, index)
 
     cond do
       ## If the bucket has still some space left, we can just add the node to
       ## the bucket. Easy Peasy
       Bucket.has_space?(bucket) ->
-        node_child = {Node, own_node_id: my_node_id, node_tuple: node_tuple,
-                      bucket_index: index}
+        node_child = {Node, own_node_id: my_node_id, node_tuple: node_tuple, bucket_index: index}
 
-        {:ok, pid} = my_node_id
-        |> Base.encode16()
-        |> MlDHT.Registry.get_pid(MlDHT.RoutingTable.NodeSupervisor, state.rt_name)
-        |> DynamicSupervisor.start_child(node_child)
+        {:ok, pid} =
+          my_node_id
+          |> Base.encode16()
+          |> MlDHT.Registry.get_pid(MlDHT.RoutingTable.NodeSupervisor, state.rt_name)
+          |> DynamicSupervisor.start_child(node_child)
 
         new_bucket = Bucket.add(bucket, pid)
 
         :ets.insert(state.cache, {node_id, pid})
         state |> Map.put(:buckets, List.replace_at(buckets, index, new_bucket))
 
-        ## If the bucket is full and the node would belong to a bucket that is far
-        ## away from us, we will just drop that node. Go away you filthy node!
-        Bucket.is_full?(bucket) and index != index_last_bucket(buckets) ->
-        Logger.debug "Bucket #{index} is full -> drop #{Base.encode16(node_id)}"
-      state
+      ## If the bucket is full and the node would belong to a bucket that is far
+      ## away from us, we will just drop that node. Go away you filthy node!
+      Bucket.is_full?(bucket) and index != index_last_bucket(buckets) ->
+        Logger.debug("Bucket #{index} is full -> drop #{Base.encode16(node_id)}")
+        state
 
       ## If the bucket is full but the node is closer to us, we will reorganize
       ## the nodes in the buckets and try again to add it to our bucket list.
       true ->
-          buckets = reorganize(bucket.nodes, buckets ++ [Bucket.new(index + 1)], my_node_id)
-          add_node(%{state | :buckets => buckets}, node_tuple)
+        buckets = reorganize(bucket.nodes, buckets ++ [Bucket.new(index + 1)], my_node_id)
+        add_node(%{state | :buckets => buckets}, node_tuple)
     end
   end
 
@@ -371,26 +353,28 @@ defmodule MlDHT.RoutingTable.Worker do
   TODO
   """
   def reorganize([], buckets, _self_node_id), do: buckets
+
   def reorganize([node | rest], buckets, my_node_id) do
-    current_index  = length(buckets) - 2
-    index          = find_bucket_index(buckets, my_node_id, Node.id(node))
+    current_index = length(buckets) - 2
+    index = find_bucket_index(buckets, my_node_id, Node.id(node))
 
-    new_buckets = if current_index != index do
-      current_bucket = Enum.at(buckets, current_index)
-      new_bucket     = Enum.at(buckets, index)
+    new_buckets =
+      if current_index != index do
+        current_bucket = Enum.at(buckets, current_index)
+        new_bucket = Enum.at(buckets, index)
 
-      ## Remove the node from the current bucket
-      filtered_bucket = Bucket.del(current_bucket, Node.id(node))
+        ## Remove the node from the current bucket
+        filtered_bucket = Bucket.del(current_bucket, Node.id(node))
 
-      ## Change bucket index in the Node to the new one
-      Node.bucket_index(node, index)
+        ## Change bucket index in the Node to the new one
+        Node.bucket_index(node, index)
 
-      ## Then add it to the new_bucket
-      List.replace_at(buckets, current_index, filtered_bucket)
-      |> List.replace_at(index, Bucket.add(new_bucket, node))
-    else
-      buckets
-    end
+        ## Then add it to the new_bucket
+        List.replace_at(buckets, current_index, filtered_bucket)
+        |> List.replace_at(index, Bucket.add(new_bucket, node))
+      else
+        buckets
+      end
 
     reorganize(rest, new_buckets, my_node_id)
   end
@@ -417,11 +401,12 @@ defmodule MlDHT.RoutingTable.Worker do
   """
   def find_bucket_index(buckets, self_node_id, remote_node_id) do
     unless byte_size(self_node_id) == byte_size(remote_node_id) do
-      Logger.error "self_node_id: #{byte_size(self_node_id)}
-      remote_node_id: #{byte_size(remote_node_id)}"
+      Logger.error("self_node_id: #{byte_size(self_node_id)}
+      remote_node_id: #{byte_size(remote_node_id)}")
 
       raise ArgumentError, message: "Different length of self_node_id and remote_node_id"
     end
+
     bucket_index = Distance.find_bucket(self_node_id, remote_node_id)
 
     min(bucket_index, index_last_bucket(buckets))
@@ -439,9 +424,10 @@ defmodule MlDHT.RoutingTable.Worker do
     {_id, node_pid} = :ets.lookup(cache, node_id) |> Enum.at(0)
 
     ## Delete node from the bucket list
-    new_buckets = Enum.map(buckets, fn(bucket) ->
-      Bucket.del(bucket, node_id)
-    end)
+    new_buckets =
+      Enum.map(buckets, fn bucket ->
+        Bucket.del(bucket, node_id)
+      end)
 
     ## Stop the node
     Node.stop(node_pid)
@@ -458,8 +444,7 @@ defmodule MlDHT.RoutingTable.Worker do
   def get_node(cache, node_id) do
     case :ets.lookup(cache, node_id) do
       [{_node_id, pid}] -> pid
-      [] -> :nil
+      [] -> nil
     end
   end
-
 end

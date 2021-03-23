@@ -18,5 +18,4 @@ defmodule MlDHT.Server.Worker.Test do
 
     assert new_state.old_secret == secret
   end
-
 end

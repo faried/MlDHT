@@ -46,7 +46,7 @@ defmodule MlDHT.Search.Worker do
 
   def tid(pid), do: GenServer.call(pid, :tid)
 
-#  @spec handle_reply(pid, foo, list) :: :ok
+  #  @spec handle_reply(pid, foo, list) :: :ok
   def handle_reply(pid, remote, nodes) do
     GenServer.cast(pid, {:handle_reply, remote, nodes})
   end
@@ -59,18 +59,19 @@ defmodule MlDHT.Search.Worker do
     ## Extract the id from the via string
     {_, _, {_, id}} = name
 
-    {:ok, %{
-        :socket  => socket,
-        :node_id => node_id,
-        :type    => type,
-        :tid     => tid,
-        :name    => id
+    {:ok,
+     %{
+       :socket => socket,
+       :node_id => node_id,
+       :type => type,
+       :tid => tid,
+       :name => id
      }}
   end
 
   def handle_info(:search_iterate, state) do
     if search_completed?(state.nodes, state.target) do
-      Logger.debug "Search is complete"
+      Logger.debug("Search is complete")
 
       ## If the search is complete and it was get_peers search, then we will
       ## send the clostest peers an announce_peer message.
@@ -83,16 +84,17 @@ defmodule MlDHT.Search.Worker do
       {:stop, :normal, state}
     else
       ## Send queries to the 3 closest nodes
-      new_state = state.nodes
-      |> Distance.closest_nodes(state.target)
-      |> Enum.filter(fn(x) ->
-        x.responded == false and
-        x.requested < 3 and
-        Node.last_time_requested(x) > 5
-      end)
-      |> Enum.slice(0..2)
-      |> nodesinspector()
-      |> send_queries(state)
+      new_state =
+        state.nodes
+        |> Distance.closest_nodes(state.target)
+        |> Enum.filter(fn x ->
+          x.responded == false and
+            x.requested < 3 and
+            Node.last_time_requested(x) > 5
+        end)
+        |> Enum.slice(0..2)
+        |> nodesinspector()
+        |> send_queries(state)
 
       ## Restart Timer
       Process.send_after(self(), :search_iterate, 1_000)
@@ -145,13 +147,15 @@ defmodule MlDHT.Search.Worker do
   def handle_cast({:handle_reply, remote, nodes}, state) do
     old_nodes = update_responded_node(state.nodes, remote)
 
-    new_nodes = Enum.map(nodes, fn(node) ->
-      {id, {ip, port}} = node
-      unless Enum.find(state.nodes, fn(x) -> x.id == id end) do
-        %Node{id: id, ip: ip, port: port}
-      end
-    end)
-    |> Enum.filter(fn(x) -> x != nil end)
+    new_nodes =
+      Enum.map(nodes, fn node ->
+        {id, {ip, port}} = node
+
+        unless Enum.find(state.nodes, fn x -> x.id == id end) do
+          %Node{id: id, ip: ip, port: port}
+        end
+      end)
+      |> Enum.filter(fn x -> x != nil end)
 
     {:noreply, %{state | nodes: old_nodes ++ new_nodes}}
   end
@@ -163,12 +167,11 @@ defmodule MlDHT.Search.Worker do
   def send_announce_msg(state) do
     state.nodes
     |> Distance.closest_nodes(state.target, 7)
-    |> Enum.filter(fn(node) -> node.responded == true end)
-    |> Enum.each(fn(node) ->
-      Logger.debug "[#{Base.encode16 node.id}] << announce_peer"
+    |> Enum.filter(fn node -> node.responded == true end)
+    |> Enum.each(fn node ->
+      Logger.debug("[#{Base.encode16(node.id)}] << announce_peer")
 
-      args = [node_id: state.node_id, info_hash: state.target,
-              token: node.token, port: node.port]
+      args = [node_id: state.node_id, info_hash: state.target, token: node.token, port: node.port]
       args = if state.port == 0, do: args ++ [implied_port: true], else: args
 
       payload = KRPCProtocol.encode(:announce_peer, args)
@@ -179,7 +182,7 @@ defmodule MlDHT.Search.Worker do
   ## This function merges args (keyword list) with the state map and returns a
   ## function depending on the type (:get_peers, :find_node).
   defp start_search_closure(type, args, state) do
-    fn() ->
+    fn ->
       Process.send_after(self(), :search_iterate, 500)
 
       ## Convert the keyword list to a map and merge it with state.
@@ -192,22 +195,24 @@ defmodule MlDHT.Search.Worker do
   end
 
   defp send_queries([], state), do: state
+
   defp send_queries([node | rest], state) do
     node_id_enc = node.id |> Base.encode16()
-    Logger.debug "[#{node_id_enc}] << #{state.type}"
+    Logger.debug("[#{node_id_enc}] << #{state.type}")
 
     payload = gen_request_msg(state.type, state)
     :gen_udp.send(state.socket, node.ip, node.port, payload)
 
-    new_nodes = state.nodes
-    |> update_nodes(node.id, :requested, &(&1.requested + 1))
-    |> update_nodes(node.id, :request_sent, fn(_) -> :os.system_time(:millisecond) end)
+    new_nodes =
+      state.nodes
+      |> update_nodes(node.id, :requested, &(&1.requested + 1))
+      |> update_nodes(node.id, :request_sent, fn _ -> :os.system_time(:millisecond) end)
 
     send_queries(rest, %{state | nodes: new_nodes})
   end
 
   defp nodes_to_search_nodes(nodes) do
-    Enum.map(nodes, fn(node) ->
+    Enum.map(nodes, fn node ->
       {id, ip, port} = extract_node_infos(node)
       %Node{id: id, ip: ip, port: port}
     end)
@@ -231,7 +236,7 @@ defmodule MlDHT.Search.Worker do
     node_list = update_nodes(nodes, remote.node_id, :responded)
 
     if Map.has_key?(remote, :token) do
-      update_nodes(node_list, remote.node_id, :token, fn(_) -> remote.token end)
+      update_nodes(node_list, remote.node_id, :token, fn _ -> remote.token end)
     else
       node_list
     end
@@ -239,11 +244,11 @@ defmodule MlDHT.Search.Worker do
 
   ## This function is a helper function to update the node list easily.
   defp update_nodes(nodes, node_id, key) do
-    update_nodes(nodes, node_id, key, fn(_) -> true end)
+    update_nodes(nodes, node_id, key, fn _ -> true end)
   end
 
   defp update_nodes(nodes, node_id, key, func) do
-    Enum.map(nodes, fn(node) ->
+    Enum.map(nodes, fn node ->
       if node.id == node_id do
         Map.put(node, key, func.(node))
       else
@@ -253,6 +258,7 @@ defmodule MlDHT.Search.Worker do
   end
 
   defp extract_node_infos(node) when is_tuple(node), do: node
+
   defp extract_node_infos(node) when is_pid(node) do
     MlDHT.RoutingTable.Node.to_tuple(node)
   end
@@ -261,9 +267,8 @@ defmodule MlDHT.Search.Worker do
   defp search_completed?(nodes, target) do
     nodes
     |> Distance.closest_nodes(target, 7)
-    |> Enum.all?(fn(node) ->
+    |> Enum.all?(fn node ->
       node.responded == true or node.requested >= 3
     end)
   end
-
 end

@@ -18,7 +18,7 @@ defmodule MlDHT.Server.Worker do
   @time_change_secret 60 * 1000 * 5
 
   def start_link(opts) do
-    GenServer .start_link(__MODULE__, opts[:node_id], opts)
+    GenServer.start_link(__MODULE__, opts[:node_id], opts)
   end
 
   @doc """
@@ -63,12 +63,13 @@ defmodule MlDHT.Server.Worker do
 
     case :gen_udp.open(port, options ++ [{:active, true}]) do
       {:ok, socket} ->
-        Logger.debug "Init DHT Node (#{ip_vers})"
+        Logger.debug("Init DHT Node (#{ip_vers})")
 
         foo = :inet.getopts(socket, [:ipv6_v6only])
-        Logger.debug "Options: #{inspect foo}"
+        Logger.debug("Options: #{inspect(foo)}")
 
         socket
+
       {:error, reason} ->
         {:stop, reason}
     end
@@ -86,14 +87,20 @@ defmodule MlDHT.Server.Worker do
     end
 
     cfg_port = config(:port)
-    socket   = if cfg_ipv4_is_enabled?, do: create_udp_socket(cfg_port, :ipv4), else: nil
-    socket6  = if cfg_ipv6_is_enabled?, do: create_udp_socket(cfg_port, :ipv6), else: nil
+    socket = if cfg_ipv4_is_enabled?, do: create_udp_socket(cfg_port, :ipv4), else: nil
+    socket6 = if cfg_ipv6_is_enabled?, do: create_udp_socket(cfg_port, :ipv6), else: nil
 
     ## Change secret of the token every 5 minutes
     Process.send_after(self(), :change_secret, @time_change_secret)
 
-    state = %{node_id: node_id, node_id_enc: Base.encode16(node_id),
-              socket: socket, socket6: socket6, old_secret: nil, secret: Utils.gen_secret}
+    state = %{
+      node_id: node_id,
+      node_id_enc: Base.encode16(node_id),
+      socket: socket,
+      socket6: socket6,
+      old_secret: nil,
+      secret: Utils.gen_secret()
+    }
 
     # INFO Setup routingtable for IPv4
     if cfg_ipv4_is_enabled? do
@@ -121,13 +128,13 @@ defmodule MlDHT.Server.Worker do
     rt_name = to_string(rt_name)
 
     ## Allows giving atoms as rt_name to this function, e.g. :ipv4
-    {:ok, _pid} = node_id_enc
-    |> MlDHT.Registry.get_pid(MlDHT.RoutingTable.Supervisor)
-    |> DynamicSupervisor.start_child({
-      MlDHT.RoutingTable.Supervisor,
-      node_id:     node_id,
-      node_id_enc: node_id_enc,
-      rt_name:     rt_name})
+    {:ok, _pid} =
+      node_id_enc
+      |> MlDHT.Registry.get_pid(MlDHT.RoutingTable.Supervisor)
+      |> DynamicSupervisor.start_child({
+        MlDHT.RoutingTable.Supervisor,
+        node_id: node_id, node_id_enc: node_id_enc, rt_name: rt_name
+      })
 
     node_id |> get_rtable(rt_name)
   end
@@ -145,49 +152,67 @@ defmodule MlDHT.Server.Worker do
 
   def handle_cast({:search_announce, infohash, callback}, state) do
     # TODO What about ipv6?
-    nodes = state.node_id
-    |> get_rtable(:ipv4)
-    |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
+    nodes =
+      state.node_id
+      |> get_rtable(:ipv4)
+      |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
 
     state.node_id_enc
     |> MlDHT.Registry.get_pid(MlDHT.Search.Supervisor)
     |> MlDHT.Search.Supervisor.start_child(:get_peers, state.socket, state.node_id)
-    |> Search.get_peers(target: infohash, start_nodes: nodes,
-    callback: callback, port: 0, announce: true)
+    |> Search.get_peers(
+      target: infohash,
+      start_nodes: nodes,
+      callback: callback,
+      port: 0,
+      announce: true
+    )
 
     {:noreply, state}
   end
 
   def handle_cast({:search_announce, infohash, callback, port}, state) do
-    nodes = state.node_id
-    |> get_rtable(:ipv4)
-    |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
+    nodes =
+      state.node_id
+      |> get_rtable(:ipv4)
+      |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
 
     state.node_id_enc
     |> MlDHT.Registry.get_pid(MlDHT.Search.Supervisor)
     |> MlDHT.Search.Supervisor.start_child(:get_peers, state.socket, state.node_id)
-    |> Search.get_peers(target: infohash, start_nodes: nodes,
-    callback: callback, port: port, announce: true)
+    |> Search.get_peers(
+      target: infohash,
+      start_nodes: nodes,
+      callback: callback,
+      port: port,
+      announce: true
+    )
 
     {:noreply, state}
   end
 
   def handle_cast({:search, infohash, callback}, state) do
-    nodes = state.node_id
-    |> get_rtable(:ipv4)
-    |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
+    nodes =
+      state.node_id
+      |> get_rtable(:ipv4)
+      |> MlDHT.RoutingTable.Worker.closest_nodes(infohash)
 
     state.node_id_enc
     |> MlDHT.Registry.get_pid(MlDHT.Search.Supervisor)
     |> MlDHT.Search.Supervisor.start_child(:get_peers, state.socket, state.node_id)
-    |> Search.get_peers(target: infohash, start_nodes: nodes, port: 0,
-    callback: callback, announce: false)
+    |> Search.get_peers(
+      target: infohash,
+      start_nodes: nodes,
+      port: 0,
+      callback: callback,
+      announce: false
+    )
 
     {:noreply, state}
   end
 
   def handle_info(:change_secret, state) do
-    Logger.debug "Change Secret"
+    Logger.debug("Change Secret")
     Process.send_after(self(), :change_secret, @time_change_secret)
 
     {:noreply, %{state | old_secret: state.secret, secret: Utils.gen_secret()}}
@@ -212,7 +237,7 @@ defmodule MlDHT.Server.Worker do
   #########
 
   def handle_message({:error, error}, _socket, ip, port, state) do
-    args    = [code: error.code, msg: error.msg, tid: error.tid]
+    args = [code: error.code, msg: error.msg, tid: error.tid]
     payload = KRPCProtocol.encode(:error, args)
     :gen_udp.send(state.socket, ip, port, payload)
 
@@ -220,7 +245,7 @@ defmodule MlDHT.Server.Worker do
   end
 
   def handle_message({:invalid, msg}, _socket, _ip, _port, state) do
-    Logger.error "Ignore unknown or corrupted message: #{inspect msg, limit: 5000}"
+    Logger.error("Ignore unknown or corrupted message: #{inspect(msg, limit: 5000)}")
     ## Maybe we should blacklist this filthy peer?
 
     {:noreply, state}
@@ -231,7 +256,7 @@ defmodule MlDHT.Server.Worker do
   ########################
 
   def handle_message({:ping, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> ping"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> ping")
     query_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
 
     send_ping_reply(state.node_id, remote.tid, ip, port, socket)
@@ -240,29 +265,30 @@ defmodule MlDHT.Server.Worker do
   end
 
   def handle_message({:find_node, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> find_node"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> find_node")
     query_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
 
     ## Get closest nodes for the requested target from the routing table
-    nodes = state.node_id
-    |> get_rtable(ip_vers)
-    |> MlDHT.RoutingTable.Worker.closest_nodes(remote.target, remote.node_id)
-    |> Enum.map(fn(pid) ->
-      try do
-        if Process.alive?(pid) do
-          Node.to_tuple(pid)
+    nodes =
+      state.node_id
+      |> get_rtable(ip_vers)
+      |> MlDHT.RoutingTable.Worker.closest_nodes(remote.target, remote.node_id)
+      |> Enum.map(fn pid ->
+        try do
+          if Process.alive?(pid) do
+            Node.to_tuple(pid)
+          end
+        rescue
+          _e in Enum.EmptyError -> nil
         end
-      rescue
-        _e in Enum.EmptyError -> nil
-      end
-    end)
+      end)
 
     if nodes != [] do
       Logger.debug("[#{Base.encode16(remote.node_id)}] << find_node_reply")
 
       nodes_args = if ip_vers == :ipv4, do: [nodes: nodes], else: [nodes6: nodes]
       args = [node_id: state.node_id] ++ nodes_args ++ [tid: remote.tid]
-      Logger.debug "NODES ARGS: #{inspect args}"
+      Logger.debug("NODES ARGS: #{inspect(args)}")
       payload = KRPCProtocol.encode(:find_node_reply, args)
 
       # Logger.debug(PrettyHex.pretty_hex(to_string(payload)))
@@ -275,7 +301,7 @@ defmodule MlDHT.Server.Worker do
 
   ## Get_peers
   def handle_message({:get_peers, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> get_peers"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> get_peers")
     query_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
 
     ## Generate a token for the requesting node
@@ -285,19 +311,21 @@ defmodule MlDHT.Server.Worker do
     storage_pid = state.node_id |> Base.encode16() |> Registry.get_pid(Storage)
 
     args =
-    if Storage.has_nodes_for_infohash?(storage_pid, remote.info_hash) do
-      values = Storage.get_nodes(storage_pid, remote.info_hash)
-      [node_id: state.node_id, values: values, tid: remote.tid, token: token]
-    else
-      ## Get the closest nodes for the requested info_hash
-      rtable = state.node_id |> get_rtable(ip_vers)
-      nodes = Enum.map(MlDHT.RoutingTable.Worker.closest_nodes(rtable, remote.info_hash), fn(pid) ->
-        Node.to_tuple(pid)
-      end)
+      if Storage.has_nodes_for_infohash?(storage_pid, remote.info_hash) do
+        values = Storage.get_nodes(storage_pid, remote.info_hash)
+        [node_id: state.node_id, values: values, tid: remote.tid, token: token]
+      else
+        ## Get the closest nodes for the requested info_hash
+        rtable = state.node_id |> get_rtable(ip_vers)
 
-      Logger.debug("[#{Base.encode16(remote.node_id)}] << get_peers_reply (nodes)")
-      [node_id: state.node_id, nodes: nodes, tid: remote.tid, token: token]
-    end
+        nodes =
+          Enum.map(MlDHT.RoutingTable.Worker.closest_nodes(rtable, remote.info_hash), fn pid ->
+            Node.to_tuple(pid)
+          end)
+
+        Logger.debug("[#{Base.encode16(remote.node_id)}] << get_peers_reply (nodes)")
+        [node_id: state.node_id, nodes: nodes, tid: remote.tid, token: token]
+      end
 
     payload = KRPCProtocol.encode(:get_peers_reply, args)
     :gen_udp.send(socket, ip, port, payload)
@@ -307,14 +335,19 @@ defmodule MlDHT.Server.Worker do
 
   ## Announce_peer
   def handle_message({:announce_peer, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> announce_peer"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> announce_peer")
     query_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
 
     if token_match(remote.token, ip, port, state.secret, state.old_secret) do
-      Logger.debug "Valid Token"
-      Logger.debug "#{inspect remote}"
+      Logger.debug("Valid Token")
+      Logger.debug("#{inspect(remote)}")
 
-      port = if Map.has_key?(remote, :implied_port) do port else remote.port end
+      port =
+        if Map.has_key?(remote, :implied_port) do
+          port
+        else
+          remote.port
+        end
 
       ## Get pid of the storage genserver
       storage_pid = state.node_id |> Base.encode16() |> Registry.get_pid(Storage)
@@ -342,24 +375,25 @@ defmodule MlDHT.Server.Worker do
 
   def handle_message({:error_reply, error}, _socket, ip, port, state) do
     ip_port_str = Utils.tuple_to_ipstr(ip, port)
-    Logger.error "[#{ip_port_str}] >> error (#{error.code}: #{error.msg})"
+    Logger.error("[#{ip_port_str}] >> error (#{error.code}: #{error.msg})")
 
     {:noreply, state}
   end
 
   def handle_message({:find_node_reply, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> find_node_reply"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> find_node_reply")
     response_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
     tid_enc = Base.encode16(remote.tid)
 
     case MlDHT.Registry.get_pid(state.node_id_enc, Search, tid_enc) do
-      nil -> Logger.debug "[#{Base.encode16(remote.node_id)}] ignore unknown tid: #{tid_enc} "
+      nil -> Logger.debug("[#{Base.encode16(remote.node_id)}] ignore unknown tid: #{tid_enc} ")
       pid -> Search.handle_reply(pid, remote, remote.nodes)
     end
 
     ## Ping all nodes
     payload = KRPCProtocol.encode(:ping, node_id: state.node_id)
-    Enum.each(remote.nodes, fn(node_tuple) ->
+
+    Enum.each(remote.nodes, fn node_tuple ->
       {_id, {ip, port}} = node_tuple
       :gen_udp.send(socket, ip, port, payload)
     end)
@@ -368,12 +402,12 @@ defmodule MlDHT.Server.Worker do
   end
 
   def handle_message({:get_peer_reply, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> get_peer_reply"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> get_peer_reply")
     response_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
     tid_enc = Base.encode16(remote.tid)
 
     case MlDHT.Registry.get_pid(state.node_id_enc, Search, tid_enc) do
-      nil -> Logger.debug "[#{Base.encode16(remote.node_id)}] ignore unknown tid: #{tid_enc} "
+      nil -> Logger.debug("[#{Base.encode16(remote.node_id)}] ignore unknown tid: #{tid_enc} ")
       pid -> Search.handle_reply(pid, remote, remote.nodes)
     end
 
@@ -381,7 +415,7 @@ defmodule MlDHT.Server.Worker do
   end
 
   def handle_message({:ping_reply, remote}, {socket, ip_vers}, ip, port, state) do
-    Logger.debug "[#{Base.encode16(remote.node_id)}] >> ping_reply"
+    Logger.debug("[#{Base.encode16(remote.node_id)}] >> ping_reply")
     response_received(remote.node_id, state.node_id, {ip, port}, {socket, ip_vers})
 
     {:noreply, state}
@@ -401,19 +435,18 @@ defmodule MlDHT.Server.Worker do
 
   ## This function starts a search with the bootstrapping nodes.
   defp bootstrap(state, {socket, inet}) do
-
     ## Get the nodes which are defined as bootstrapping nodes in the config
-    nodes = config(:bootstrap_nodes)
-    |> resolve_hostnames(inet)
+    nodes =
+      config(:bootstrap_nodes)
+      |> resolve_hostnames(inet)
 
-    Logger.debug "nodes: #{inspect nodes}"
+    Logger.debug("nodes: #{inspect(nodes)}")
 
     ## Start a find_node search to collect neighbors for our routing table
     state.node_id_enc
     |> MlDHT.Registry.get_pid(MlDHT.Search.Supervisor)
     |> MlDHT.Search.Supervisor.start_child(:find_node, socket, state.node_id)
     |> Search.find_node(target: state.node_id, start_nodes: nodes)
-
   end
 
   ## function iterates over a list of bootstrapping nodes and tries to
@@ -421,15 +454,18 @@ defmodule MlDHT.Server.Worker do
   ## removes it; if is resolvable it replaces the hostname with the IP address.
   defp resolve_hostnames(list, inet), do: resolve_hostnames(list, inet, [])
   defp resolve_hostnames([], _inet, result), do: result
+
   defp resolve_hostnames([{id, host, port} | tail], inet, result) when is_tuple(host) do
     resolve_hostnames(tail, inet, result ++ [{id, host, port}])
   end
+
   defp resolve_hostnames([{id, host, port} | tail], inet, result) when is_binary(host) do
     case :inet.getaddr(String.to_charlist(host), :inet) do
-      {:ok, ip_addr}  ->
+      {:ok, ip_addr} ->
         resolve_hostnames(tail, inet, result ++ [{id, ip_addr, port}])
+
       {:error, code} ->
-        Logger.error "Couldn't resolve the hostname: #{host} (reason: #{code})"
+        Logger.error("Couldn't resolve the hostname: #{host} (reason: #{code})")
         resolve_hostnames(tail, inet, result)
     end
   end
@@ -440,7 +476,7 @@ defmodule MlDHT.Server.Worker do
   defp get_ip_vers(socket) when is_port(socket) do
     case :inet.getopts(socket, [:ipv6_v6only]) do
       {:ok, [ipv6_v6only: true]} -> :ipv6
-      {:ok, []}                  -> :ipv4
+      {:ok, []} -> :ipv4
     end
   end
 
@@ -486,7 +522,6 @@ defmodule MlDHT.Server.Worker do
 
   defp token_match(tok, ip, port, secret, old_secret) do
     token_match(tok, ip, port, secret, nil) or
-    token_match(tok, ip, port, old_secret, nil)
+      token_match(tok, ip, port, old_secret, nil)
   end
-
 end

@@ -11,42 +11,42 @@ defmodule MlDHT.RoutingTable.Bucket.Test do
 
     bucket =
       Bucket.add(bucket, "elem1")
-    |> Bucket.add("elem2")
-    |> Bucket.add("elem3")
+      |> Bucket.add("elem2")
+      |> Bucket.add("elem3")
 
     assert Bucket.size(bucket) == 3
   end
 
   test "if is_full?/1 returns false when only 6 elements are added" do
     list_half_full = 1..6 |> Enum.to_list()
-    assert Bucket.new(0) |> Bucket.add(list_half_full) |> Bucket.is_full? == false
+    assert Bucket.new(0) |> Bucket.add(list_half_full) |> Bucket.is_full?() == false
   end
 
   test "if is_full?/1 returns true when only 8 elements are added" do
     list_full = 1..8 |> Enum.to_list()
-    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.is_full? == true
+    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.is_full?() == true
   end
 
   test "if has_space?/1 returns true when only 6 elements are added" do
     list_half_full = 1..6 |> Enum.to_list()
-    assert Bucket.new(0) |> Bucket.add(list_half_full) |> Bucket.has_space? == true
+    assert Bucket.new(0) |> Bucket.add(list_half_full) |> Bucket.has_space?() == true
   end
 
   test "if has_space?/1 returns false when only 8 elements are added" do
     list_full = 1..8 |> Enum.to_list()
-    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.has_space? == false
+    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.has_space?() == false
   end
 
   test "if different value for k_bucket_size" do
     default_k = Application.get_env(:mldht, :k_bucket_size)
-    new_k     = 20
+    new_k = 20
 
     # Set a new value of k
     Application.put_env(:mldht, :k_bucket_size, new_k)
 
     # Test if the bucket has space if we add as much nodes as the new bucket size
     list_full = 1..new_k |> Enum.to_list()
-    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.has_space? == false
+    assert Bucket.new(0) |> Bucket.add(list_full) |> Bucket.has_space?() == false
 
     # Set previous default value of k for the other tests
     Application.put_env(:mldht, :k_bucket_size, default_k)
@@ -79,9 +79,8 @@ defmodule MlDHT.RoutingTable.Bucket.Test do
   end
 
   test "if update/1 still has the same nodes" do
-    bucket     = Bucket.new(0) |> Bucket.add([1, 2, 3, 4, 5])
+    bucket = Bucket.new(0) |> Bucket.add([1, 2, 3, 4, 5])
     new_bucket = Bucket.update(bucket)
     assert Bucket.size(new_bucket) == 5
   end
-
 end

@@ -15,7 +15,7 @@ defmodule MlDHT do
 
   ## Constants
 
-  @node_id     Utils.gen_node_id()
+  @node_id Utils.gen_node_id()
   @node_id_enc Base.encode16(@node_id)
 
   ## Types
@@ -46,12 +46,12 @@ defmodule MlDHT do
     MlDHT.Registry.start()
 
     ## Generate a new node ID
-    Logger.debug "Node-ID: #{@node_id_enc}"
+    Logger.debug("Node-ID: #{@node_id_enc}")
 
     ## Start the main supervisor
     MlDHT.Supervisor.start_link(
       node_id: @node_id,
-      name:    MlDHT.Registry.via(@node_id_enc, MlDHT.Supervisor)
+      name: MlDHT.Registry.via(@node_id_enc, MlDHT.Supervisor)
     )
   end
 
@@ -125,5 +125,4 @@ defmodule MlDHT do
     pid = @node_id_enc |> MlDHT.Registry.get_pid(MlDHT.Server.Worker)
     MlDHT.Server.Worker.search_announce(pid, infohash, callback, port)
   end
-
 end

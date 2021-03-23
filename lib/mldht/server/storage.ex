@@ -44,7 +44,7 @@ defmodule MlDHT.Server.Storage do
   end
 
   def handle_info(:review_storage, state) do
-    Logger.debug "Review storage"
+    Logger.debug("Review storage")
 
     ## Restart review timer
     Process.send_after(self(), :review_storage, @review_time)
@@ -54,16 +54,17 @@ defmodule MlDHT.Server.Storage do
 
   def handle_call({:has_nodes_for_infohash?, infohash}, _from, state) do
     has_keys = Map.has_key?(state, infohash)
-    result   = if has_keys, do: Map.get(state, infohash) != [], else: has_keys
+    result = if has_keys, do: Map.get(state, infohash) != [], else: has_keys
 
     {:reply, result, state}
   end
 
   def handle_call({:get_nodes, infohash}, _from, state) do
-    nodes = state
-    |> Map.get(infohash)
-    |> Enum.map(fn(x) -> Tuple.delete_at(x, 2) end)
-    |> Enum.slice(0..99)
+    nodes =
+      state
+      |> Map.get(infohash)
+      |> Enum.map(fn x -> Tuple.delete_at(x, 2) end)
+      |> Enum.slice(0..99)
 
     {:reply, nodes, state}
   end
@@ -73,22 +74,22 @@ defmodule MlDHT.Server.Storage do
 
     new_state =
       if Map.has_key?(state, infohash) do
-        index = state
-        |> Map.get(infohash)
-        |> Enum.find_index(fn(node_tuple) ->
-          Tuple.delete_at(node_tuple, 2) == {ip, port}
-        end)
+        index =
+          state
+          |> Map.get(infohash)
+          |> Enum.find_index(fn node_tuple ->
+            Tuple.delete_at(node_tuple, 2) == {ip, port}
+          end)
 
         if index do
-          Map.update!(state, infohash, fn(x) ->
+          Map.update!(state, infohash, fn x ->
             List.replace_at(x, index, item)
           end)
         else
-          Map.update!(state, infohash, fn(x) ->
+          Map.update!(state, infohash, fn x ->
             x ++ [item]
           end)
         end
-
       else
         Map.put(state, infohash, [item])
       end
@@ -97,10 +98,11 @@ defmodule MlDHT.Server.Storage do
   end
 
   def handle_cast(:print, state) do
-    Enum.each(Map.keys(state), fn(infohash) ->
-      Logger.debug "#{Base.encode16 infohash}"
-      Enum.each(Map.get(state, infohash), fn(x) ->
-        Logger.debug "  #{inspect x}"
+    Enum.each(Map.keys(state), fn infohash ->
+      Logger.debug("#{Base.encode16(infohash)}")
+
+      Enum.each(Map.get(state, infohash), fn x ->
+        Logger.debug("  #{inspect(x)}")
       end)
     end)
 
@@ -108,17 +110,17 @@ defmodule MlDHT.Server.Storage do
   end
 
   def review([], result), do: result
+
   def review([head | tail], result) do
     new = delete_old_nodes(result, head)
     review(tail, new)
   end
 
   def delete_old_nodes(state, infohash) do
-    Map.update!(state, infohash, fn(list) ->
-      Enum.filter(list, fn(x) ->
-        (:os.system_time(:millisecond) - elem(x, 2)) <= @node_expired
+    Map.update!(state, infohash, fn list ->
+      Enum.filter(list, fn x ->
+        :os.system_time(:millisecond) - elem(x, 2) <= @node_expired
       end)
     end)
   end
-
 end

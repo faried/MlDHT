@@ -25,6 +25,7 @@ defmodule MlDHT.RoutingTable.Node do
   end
 
   def bucket_index(pid), do: GenServer.call(pid, :bucket_index)
+
   def bucket_index(pid, new_index) do
     GenServer.cast(pid, {:bucket_index, new_index})
   end
@@ -94,20 +95,19 @@ defmodule MlDHT.RoutingTable.Node do
 
     {:ok,
      %{
-       :own_node_id  => opts[:own_node_id],
+       :own_node_id => opts[:own_node_id],
        :bucket_index => opts[:bucket_index],
-       :node_id      => node_id,
-       :ip           => ip,
-       :port         => port,
-       :socket       => socket,
-       :goodness     => :good,
+       :node_id => node_id,
+       :ip => ip,
+       :port => port,
+       :socket => socket,
+       :goodness => :good,
 
        ## Timer
        :last_response_rcv => :os.system_time(:millisecond),
-       :last_query_rcv    => 0,
-       :last_query_snd    => 0
-     }
-    }
+       :last_query_rcv => 0,
+       :last_query_snd => 0
+     }}
   end
 
   def handle_call(:stop, _from, state) do
@@ -156,7 +156,7 @@ defmodule MlDHT.RoutingTable.Node do
 
   def handle_call(:to_string, _from, state) do
     node_id = Base.encode16(state.node_id)
-    str     = "#Node<id: #{node_id}, goodness: #{state.goodness}>"
+    str = "#Node<id: #{node_id}, goodness: #{state.goodness}>"
 
     {:reply, str, state}
   end
@@ -164,8 +164,7 @@ defmodule MlDHT.RoutingTable.Node do
   # If we receive a response to our query and the goodness value is
   # :questionable, we set it back to :good
   def handle_cast({:response_received}, state) do
-    {:noreply, %{state | :last_response_rcv => :os.system_time(:millisecond),
-                         :goodness => :good}}
+    {:noreply, %{state | :last_response_rcv => :os.system_time(:millisecond), :goodness => :good}}
   end
 
   def handle_cast({:query_received}, state) do
@@ -192,8 +191,12 @@ defmodule MlDHT.RoutingTable.Node do
   def handle_cast({:send_find_node, target}, state) do
     Logger.debug("[#{Base.encode16(state.node_id)}] << find_node")
 
-    payload = KRPCProtocol.encode(:find_node, node_id: state.own_node_id,
-                                  target: target)
+    payload =
+      KRPCProtocol.encode(:find_node,
+        node_id: state.own_node_id,
+        target: target
+      )
+
     :gen_udp.send(state.socket, state.ip, state.port, payload)
 
     {:noreply, %{state | :last_query_snd => :os.system_time(:millisecond)}}
@@ -206,21 +209,27 @@ defmodule MlDHT.RoutingTable.Node do
   def handle_cast({:send_find_node_reply, tid, nodes}, state) do
     Logger.debug("[#{Base.encode16(state.node_id)}] << find_node_reply")
 
-    payload = KRPCProtocol.encode(:find_node_reply, node_id:
-                                  state.own_node_id, nodes: nodes, tid: tid)
+    payload =
+      KRPCProtocol.encode(:find_node_reply, node_id: state.own_node_id, nodes: nodes, tid: tid)
+
     :gen_udp.send(state.socket, state.ip, state.port, payload)
 
     {:noreply, state}
   end
 
   def handle_cast({:send_get_peers_reply, tid, nodes, token}, state) do
-    Logger.debug("[#{Base.encode16(state.node_id)}] << get_peers_reply (#{inspect token})")
+    Logger.debug("[#{Base.encode16(state.node_id)}] << get_peers_reply (#{inspect(token)})")
 
-    payload = KRPCProtocol.encode(:get_peers_reply, node_id:
-                                  state.own_node_id, nodes: nodes, tid: tid, token: token)
+    payload =
+      KRPCProtocol.encode(:get_peers_reply,
+        node_id: state.own_node_id,
+        nodes: nodes,
+        tid: tid,
+        token: token
+      )
+
     :gen_udp.send(state.socket, state.ip, state.port, payload)
 
     {:noreply, state}
   end
-
 end

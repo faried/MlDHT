@@ -4,24 +4,22 @@ defmodule MlDHT.RoutingTable.Node.Test do
   alias MlDHT.RoutingTable.Node
 
   setup do
-    rt_name     = "rt_test"
-    node_id     = String.duplicate("A", 20)
+    rt_name = "rt_test"
+    node_id = String.duplicate("A", 20)
     node_id_enc = Base.encode16(node_id)
-    node_tuple  = {node_id, {{127, 0, 0, 1}, 2323}, nil}
-    node_child  = {Node, own_node_id: node_id, node_tuple: node_tuple, bucket_index: 23}
+    node_tuple = {node_id, {{127, 0, 0, 1}, 2323}, nil}
+    node_child = {Node, own_node_id: node_id, node_tuple: node_tuple, bucket_index: 23}
 
     start_supervised!({
       DynamicSupervisor,
       name: MlDHT.Registry.via(node_id_enc, MlDHT.RoutingTable.NodeSupervisor, rt_name),
-      strategy: :one_for_one})
+      strategy: :one_for_one
+    })
 
     sup_pid = MlDHT.Registry.get_pid(node_id_enc, MlDHT.RoutingTable.NodeSupervisor, rt_name)
     {:ok, pid} = DynamicSupervisor.start_child(sup_pid, node_child)
 
-    [pid:         pid,
-     node_id:     node_id,
-     node_id_enc: node_id_enc
-    ]
+    [pid: pid, node_id: node_id, node_id_enc: node_id_enc]
   end
 
   test "if RoutingTable.Node stops correctly ", state do
@@ -84,5 +82,4 @@ defmodule MlDHT.RoutingTable.Node.Test do
 
     assert Node.goodness(state.pid) == :good
   end
-
 end

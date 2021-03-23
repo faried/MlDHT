@@ -12,7 +12,7 @@ defmodule MlDHT.Test do
   end
 
   test "if MlDHT.search returns nodes for ubuntu-19.04.iso.torrent" do
-    Process.register self(), :mldht_test_search
+    Process.register(self(), :mldht_test_search)
 
     ## Wait 3 seconds to ensure that the bootstrapping process has collected
     ## enough nodes
@@ -24,10 +24,10 @@ defmodule MlDHT.Test do
     ## called. To avoid errors, I wrapped the try-do-rescuce around the send
     ## function.
     "D540FC48EB12F2833163EED6421D449DD8F1CE1F"
-    |> Base.decode16!
-    |> MlDHT.search(fn (_node) ->
+    |> Base.decode16!()
+    |> MlDHT.search(fn _node ->
       try do
-        send :mldht_test_search, {:called_back, :pong}
+        send(:mldht_test_search, {:called_back, :pong})
       rescue
         _ -> 1 + 1
       end
@@ -53,5 +53,4 @@ defmodule MlDHT.Test do
     assert node_id == rcv_node_id
     assert tid == "AA"
   end
-
 end

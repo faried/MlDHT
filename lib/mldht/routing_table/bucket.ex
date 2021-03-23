@@ -31,15 +31,15 @@ defmodule MlDHT.RoutingTable.Bucket do
   end
 
   def add(bucket, element) when is_list(element) do
-    %{Bucket.new(bucket.index) |nodes: bucket.nodes ++ List.flatten(element)}
+    %{Bucket.new(bucket.index) | nodes: bucket.nodes ++ List.flatten(element)}
   end
 
   def add(bucket, element) do
-    %{Bucket.new(bucket.index) |nodes: bucket.nodes ++ [element]}
+    %{Bucket.new(bucket.index) | nodes: bucket.nodes ++ [element]}
   end
 
   def update(bucket) do
-    %{Bucket.new(bucket.index) |nodes: bucket.nodes }
+    %{Bucket.new(bucket.index) | nodes: bucket.nodes}
   end
 
   def filter(bucket, func) do
@@ -47,25 +47,27 @@ defmodule MlDHT.RoutingTable.Bucket do
   end
 
   def get(bucket, node_id) do
-    Enum.find(bucket.nodes, fn(node_pid) -> Node.id(node_pid) == node_id end)
+    Enum.find(bucket.nodes, fn node_pid -> Node.id(node_pid) == node_id end)
   end
 
   def del(bucket, node_id) do
-    nodes = Enum.filter(bucket.nodes, fn(pid) -> Node.id(pid) != node_id end)
+    nodes = Enum.filter(bucket.nodes, fn pid -> Node.id(pid) != node_id end)
     %{bucket | nodes: nodes}
   end
 
   defimpl Inspect, for: Bucket do
     def inspect(bucket, _) do
-      size  = Bucket.size(bucket)
-      age   = Bucket.age(bucket)
+      size = Bucket.size(bucket)
+      age = Bucket.age(bucket)
 
       if size == 0 do
         "#Bucket<index: #{bucket.index}, size: #{size}, age: #{age}>"
       else
-        nodes = Enum.map(bucket.nodes, fn(x) ->
-          "  " <> Node.to_string(x) <> "\n"
-        end)
+        nodes =
+          Enum.map(bucket.nodes, fn x ->
+            "  " <> Node.to_string(x) <> "\n"
+          end)
+
         """
         #Bucket<index #{bucket.index}, size: #{size}, age: #{age}
         #{nodes}>
@@ -73,5 +75,4 @@ defmodule MlDHT.RoutingTable.Bucket do
       end
     end
   end
-
 end

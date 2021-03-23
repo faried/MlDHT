@@ -5,19 +5,19 @@ defmodule MlDHT.RoutingTable.Worker.Test do
 
   setup do
     rt_name = "test_rt"
-    node_id =  "AAAAAAAAAAAAAAAAAAAB"
+    node_id = "AAAAAAAAAAAAAAAAAAAB"
     node_id_enc = Base.encode16(node_id)
 
     start_supervised!({
       DynamicSupervisor,
       name: MlDHT.Registry.via(node_id_enc, MlDHT.RoutingTable.NodeSupervisor, rt_name),
-      strategy: :one_for_one})
+      strategy: :one_for_one
+    })
 
     start_supervised!({
       MlDHT.RoutingTable.Worker,
-      name:    @name,
-      node_id: node_id,
-      rt_name: rt_name})
+      name: @name, node_id: node_id, rt_name: rt_name
+    })
 
     [node_id: node_id, node_id_enc: node_id_enc, rt_name: rt_name]
   end
@@ -31,9 +31,15 @@ defmodule MlDHT.RoutingTable.Worker.Test do
   end
 
   test "get_node" do
-    assert :ok == MlDHT.RoutingTable.Worker.add(@name, "BBBBBBBBBBBBBBBBBBBB", {{127, 0, 0, 1}, 6881}, 23)
+    assert :ok ==
+             MlDHT.RoutingTable.Worker.add(
+               @name,
+               "BBBBBBBBBBBBBBBBBBBB",
+               {{127, 0, 0, 1}, 6881},
+               23
+             )
 
-    assert MlDHT.RoutingTable.Worker.get(@name, "BBBBBBBBBBBBBBBBBBBB") |> Kernel.is_pid == true
+    assert MlDHT.RoutingTable.Worker.get(@name, "BBBBBBBBBBBBBBBBBBBB") |> Kernel.is_pid() == true
     assert MlDHT.RoutingTable.Worker.get(@name, "CCCCCCCCCCCCCCCCCCCC") == nil
 
     MlDHT.RoutingTable.Worker.del(@name, "BBBBBBBBBBBBBBBBBBBB")
@@ -64,8 +70,8 @@ defmodule MlDHT.RoutingTable.Worker.Test do
   end
 
   test "if routing table size and cache size are equal with ten elements" do
-    Enum.map(?B .. ?Z, fn(x) -> String.duplicate(<<x>>, 20) end)
-    |> Enum.each(fn(node_id) ->
+    Enum.map(?B..?Z, fn x -> String.duplicate(<<x>>, 20) end)
+    |> Enum.each(fn node_id ->
       MlDHT.RoutingTable.Worker.add(@name, node_id, {{127, 0, 0, 1}, 6881}, 23)
     end)
 
@@ -80,31 +86,33 @@ defmodule MlDHT.RoutingTable.Worker.Test do
     node_id = test_worker_context.node_id
 
     ## Generate close node_ids
-    close_nodes = 1 .. 16
-    |> Enum.map(fn(x) -> MlDHT.RoutingTable.Distance.gen_node_id(160 - x, node_id) end)
-    |> Enum.filter(fn(x) -> x != node_id end)
-    |> Enum.uniq()
-    |> Enum.slice(0 .. 7)
-    |> Enum.sort()
+    close_nodes =
+      1..16
+      |> Enum.map(fn x -> MlDHT.RoutingTable.Distance.gen_node_id(160 - x, node_id) end)
+      |> Enum.filter(fn x -> x != node_id end)
+      |> Enum.uniq()
+      |> Enum.slice(0..7)
+      |> Enum.sort()
 
     ## Add the close nodes to the RoutingTable
-    Enum.each(close_nodes, fn(node) ->
+    Enum.each(close_nodes, fn node ->
       MlDHT.RoutingTable.Worker.add(@name, node, {{127, 0, 0, 1}, 6881}, nil)
     end)
 
     assert MlDHT.RoutingTable.Worker.size(@name) == 8
 
     ## Generate and add distant nodes
-    Enum.map(?B .. ?I, fn(x) -> String.duplicate(<<x>>, 20) end)
-    |> Enum.each(fn(node_id) ->
+    Enum.map(?B..?I, fn x -> String.duplicate(<<x>>, 20) end)
+    |> Enum.each(fn node_id ->
       MlDHT.RoutingTable.Worker.add(@name, node_id, {{127, 0, 0, 1}, 6881}, 23)
     end)
 
     assert MlDHT.RoutingTable.Worker.size(@name) == 16
 
-    list = MlDHT.RoutingTable.Worker.closest_nodes(@name, node_id)
-    |> Enum.map(fn(x) -> MlDHT.RoutingTable.Node.id(x)  end)
-    |> Enum.sort()
+    list =
+      MlDHT.RoutingTable.Worker.closest_nodes(@name, node_id)
+      |> Enum.map(fn x -> MlDHT.RoutingTable.Node.id(x) end)
+      |> Enum.sort()
 
     ## list and close_nodes must be equal
     assert list == close_nodes
@@ -116,7 +124,7 @@ defmodule MlDHT.RoutingTable.Worker.Test do
     MlDHT.RoutingTable.Worker.add(@name, "DDDDDDDDDDDDDDDDDDDD", {{127, 0, 0, 1}, 6881}, 23)
 
     node_id = "AAAAAAAAAAAAAAAAAAAB"
-    source  = "CCCCCCCCCCCCCCCCCCCC"
+    source = "CCCCCCCCCCCCCCCCCCCC"
 
     list = MlDHT.RoutingTable.Worker.closest_nodes(@name, node_id, source)
     assert length(list) == 2
@@ -141,5 +149,4 @@ defmodule MlDHT.RoutingTable.Worker.Test do
 
     assert MlDHT.RoutingTable.Worker.size(@name) == 2
   end
-
 end

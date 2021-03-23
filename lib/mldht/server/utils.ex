@@ -17,9 +17,10 @@ defmodule MlDHT.Server.Utils do
   def tuple_to_ipstr(ipv6_addr, port) when tuple_size(ipv6_addr) == 8 do
     ip_str =
       String.duplicate("~4.16.0B:", 8)
-      |> String.slice(0..-2) ## remove last ":" of the string
+      ## remove last ":" of the string
+      |> String.slice(0..-2)
       |> :io_lib.format(Tuple.to_list(ipv6_addr))
-      |> List.to_string
+      |> List.to_string()
 
     "[#{ip_str}]:#{port}"
   end
@@ -28,18 +29,17 @@ defmodule MlDHT.Server.Utils do
   This function generates a 160 bit (20 byte) random node id as a
   binary.
   """
-  @spec gen_node_id :: Types.node_id
+  @spec gen_node_id :: Types.node_id()
   def gen_node_id do
-    :rand.seed(:exs64, :os.timestamp)
+    :rand.seed(:exs64, :os.timestamp())
 
-    Stream.repeatedly(fn -> :rand.uniform 255 end)
+    Stream.repeatedly(fn -> :rand.uniform(255) end)
     |> Enum.take(20)
-    |> :binary.list_to_bin
+    |> :binary.list_to_bin()
   end
 
   @doc """
   TODO
   """
   def gen_secret, do: gen_node_id()
-
 end
