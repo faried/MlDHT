@@ -39,7 +39,7 @@ defmodule MlDHT.RoutingTable.Worker do
   ##############
 
   def start_link(opts) do
-    Logger.debug("Starting RoutingTable worker: #{inspect(opts)}")
+    Logger.info("Starting RoutingTable worker: #{inspect(opts)}")
     init_args = [node_id: opts[:node_id], rt_name: opts[:rt_name]]
     GenServer.start_link(__MODULE__, init_args, opts)
   end

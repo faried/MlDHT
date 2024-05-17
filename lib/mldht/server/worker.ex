@@ -63,10 +63,10 @@ defmodule MlDHT.Server.Worker do
 
     case :gen_udp.open(port, options ++ [{:active, true}]) do
       {:ok, socket} ->
-        Logger.debug("Init DHT Node (#{ip_vers})")
+        Logger.info("Init DHT Node (#{ip_vers})")
 
         foo = :inet.getopts(socket, [:ipv6_v6only])
-        Logger.debug("Options: #{inspect(foo)}")
+        Logger.info("Options: #{inspect(foo)}")
 
         socket
 
@@ -375,7 +375,9 @@ defmodule MlDHT.Server.Worker do
 
   def handle_message({:error_reply, error}, _socket, ip, port, state) do
     ip_port_str = Utils.tuple_to_ipstr(ip, port)
-    Logger.error("[#{ip_port_str}] >> error (#{error.code}: #{error.msg})")
+    if error.code != "202" and error.msg != "Server Error" do
+      Logger.error("[#{ip_port_str}] >> error (#{error.code}: #{error.msg})")
+    end
 
     {:noreply, state}
   end
@@ -440,7 +442,7 @@ defmodule MlDHT.Server.Worker do
       config(:bootstrap_nodes)
       |> resolve_hostnames(inet)
 
-    Logger.debug("nodes: #{inspect(nodes)}")
+    Logger.info("nodes: #{inspect(nodes)}")
 
     ## Start a find_node search to collect neighbors for our routing table
     state.node_id_enc
