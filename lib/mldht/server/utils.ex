@@ -18,7 +18,7 @@ defmodule MlDHT.Server.Utils do
     ip_str =
       String.duplicate("~4.16.0B:", 8)
       ## remove last ":" of the string
-      |> String.slice(0..-2)
+      |> String.slice(0..-2//1)
       |> :io_lib.format(Tuple.to_list(ipv6_addr))
       |> List.to_string()
 

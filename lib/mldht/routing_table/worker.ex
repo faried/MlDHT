@@ -303,7 +303,7 @@ defmodule MlDHT.RoutingTable.Worker do
         |> Search.find_node(target: target, start_nodes: [node])
 
       nil ->
-        Logger.warn("No nodes in our routing table.")
+        Logger.warning("No nodes in our routing table.")
     end
   end
 
