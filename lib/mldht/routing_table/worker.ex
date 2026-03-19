@@ -400,7 +400,7 @@ defmodule MlDHT.RoutingTable.Worker do
   TODO
   """
   def find_bucket_index(buckets, self_node_id, remote_node_id) do
-    unless byte_size(self_node_id) == byte_size(remote_node_id) do
+    if byte_size(self_node_id) != byte_size(remote_node_id) do
       Logger.error("self_node_id: #{byte_size(self_node_id)}
       remote_node_id: #{byte_size(remote_node_id)}")
 

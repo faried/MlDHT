@@ -82,7 +82,7 @@ defmodule MlDHT.Server.Worker do
     cfg_ipv6_is_enabled? = config(:ipv6, false)
     cfg_ipv4_is_enabled? = config(:ipv4, false)
 
-    unless cfg_ipv4_is_enabled? or cfg_ipv6_is_enabled? do
+    if !(cfg_ipv4_is_enabled? or cfg_ipv6_is_enabled?) do
       raise "Configuration failure: Either ipv4 or ipv6 has to be set to true."
     end
 
@@ -375,6 +375,7 @@ defmodule MlDHT.Server.Worker do
 
   def handle_message({:error_reply, error}, _socket, ip, port, state) do
     ip_port_str = Utils.tuple_to_ipstr(ip, port)
+
     if error.code != "202" and error.msg != "Server Error" do
       Logger.error("[#{ip_port_str}] >> error (#{error.code}: #{error.msg})")
     end

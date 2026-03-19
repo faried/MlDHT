@@ -151,7 +151,7 @@ defmodule MlDHT.Search.Worker do
       Enum.map(nodes, fn node ->
         {id, {ip, port}} = node
 
-        unless Enum.find(state.nodes, fn x -> x.id == id end) do
+        if !Enum.find(state.nodes, fn x -> x.id == id end) do
           %Node{id: id, ip: ip, port: port}
         end
       end)
