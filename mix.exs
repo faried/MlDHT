@@ -36,8 +36,8 @@ defmodule MlDHT.Mixfile do
     [
       {:krpc_protocol, git: "https://github.com/faried/krpc_protocol.git", branch: "updates"},
       {:pretty_hex, git: "https://github.com/faried/pretty_hex.git", branch: "master"},
-      {:ex_doc, "~> 0.32.2", only: :dev},
-      {:dialyxir, "~> 1.4.3", only: [:dev, :test], runtime: false}
+      {:ex_doc, "~> 0.40.1", only: :dev},
+      {:dialyxir, "~> 1.4.7", only: [:dev, :test], runtime: false}
     ]
   end
 
