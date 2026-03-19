@@ -4,8 +4,8 @@ defmodule MlDHT.Mixfile do
   def project do
     [
       app: :mldht,
-      version: "0.0.3",
-      elixir: "~> 1.2",
+      version: "0.0.4",
+      elixir: "~> 1.18",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       description: description(),
